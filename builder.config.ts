@@ -1,6 +1,6 @@
 import os from 'node:os'
 
-import { defineBuilderConfig, githubRepoSyncPlugin } from '@afilmory/builder'
+import { defineBuilderConfig, githubRepoSyncPlugin, ogImagePlugin } from '@afilmory/builder'
 
 import { env } from './env.js'
 
@@ -57,6 +57,14 @@ export default defineBuilderConfig(() => ({
   },
   // plugins: [thumbnailStoragePlugin()],
   plugins: [
+    ogImagePlugin({
+      vendor: {
+        type: 'cloudflare-middleware',
+        storageURL:
+          env.S3_CUSTOM_DOMAIN ||
+          'https://pub-f5d6344f27c64d548d5ed2c2d6ebb492.r2.dev',
+      },
+    }),
     githubRepoSyncPlugin({
       repo: {
         enable: false,

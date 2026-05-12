@@ -24,5 +24,5 @@ apps/web/public/thumbnails
 apps/web/public/photos
 apps/web/public/originals
 
-# og-image-storage plugin generated files
-functions/
+# og-image-storage plugin generated middleware (regenerated each build)
+functions/_middleware.ts
