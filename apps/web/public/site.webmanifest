@@ -1,6 +1,6 @@
 {
-  "name": "Afilmory",
-  "short_name": "Afilmory",
+  "name": "照片集",
+  "short_name": "照片集",
   "icons": [
     {
       "src": "/android-chrome-192x192.png",

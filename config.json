@@ -1,11 +1,11 @@
 {
-  "name": "photos.webclown.net",
-  "title": "yantao's photos",
-  "description": "Photography by yantao.",
+  "name": "照片集",
+  "title": "照片集",
+  "description": "Key 的照片集。",
   "url": "https://photos.webclown.net",
   "accentColor": "#007bff",
   "author": {
-    "name": "yantao",
+    "name": "Key",
     "url": "https://webclown.net",
     "avatar": ""
   },
