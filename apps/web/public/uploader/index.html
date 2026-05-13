@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="上传" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" href="/favicon.ico" />
+    <title>上传到照片集</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0a0a0a;
+        color: #eee;
+        font: 16px/1.5 -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      }
+      body {
+        max-width: 640px;
+        margin: 0 auto;
+        padding: env(safe-area-inset-top, 16px) 16px env(safe-area-inset-bottom, 16px);
+      }
+      h1 {
+        font-size: 22px;
+        font-weight: 600;
+        margin: 16px 0 24px;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      input[type='password'],
+      input[type='text'] {
+        flex: 1;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        color: #eee;
+        padding: 12px 14px;
+        border-radius: 10px;
+        font: inherit;
+      }
+      button {
+        background: #0a84ff;
+        color: white;
+        border: 0;
+        padding: 14px 22px;
+        border-radius: 10px;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        -webkit-appearance: none;
+      }
+      button.secondary {
+        background: #2c2c2e;
+        color: #eee;
+      }
+      button:disabled {
+        opacity: 0.4;
+      }
+      .picker {
+        display: block;
+        width: 100%;
+        text-align: center;
+        background: #1a1a1a;
+        border: 2px dashed #444;
+        border-radius: 14px;
+        padding: 40px 20px;
+        margin: 16px 0;
+        cursor: pointer;
+        font-size: 18px;
+      }
+      .picker:active {
+        background: #222;
+      }
+      input[type='file'] {
+        display: none;
+      }
+      .log {
+        list-style: none;
+        padding: 0;
+        margin: 16px 0;
+      }
+      .log li {
+        background: #141414;
+        border: 1px solid #222;
+        border-radius: 10px;
+        padding: 10px 14px;
+        margin-bottom: 6px;
+        font-size: 14px;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        word-break: break-all;
+      }
+      .log .name {
+        flex: 1;
+        opacity: 0.8;
+      }
+      .log .status.ok {
+        color: #4cd964;
+      }
+      .log .status.fail {
+        color: #ff453a;
+      }
+      .log .status.pending {
+        color: #ffd60a;
+      }
+      .small {
+        font-size: 13px;
+        color: #888;
+      }
+      .summary {
+        margin-top: 16px;
+        padding: 14px;
+        background: #141414;
+        border-radius: 10px;
+      }
+      a {
+        color: #0a84ff;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>上传到照片集</h1>
+
+    <div class="row" id="token-row">
+      <input type="password" id="token" placeholder="UPLOAD_SECRET" autocomplete="off" />
+      <button id="save" class="secondary">保存</button>
+    </div>
+    <div class="small" id="token-hint">
+      首次使用：粘贴 CF Pages 里 <code>UPLOAD_SECRET</code> 的值，保存到本地存储。点 <a id="reset" href="#">重置</a>
+    </div>
+
+    <label class="picker" id="picker">
+      <input type="file" id="files" accept="image/*" multiple />
+      📷 点这里选照片（支持多张）
+    </label>
+
+    <ul class="log" id="log"></ul>
+
+    <div class="summary" id="summary" hidden></div>
+
+    <script>
+      const ENDPOINT = '/api/upload'
+      const TOKEN_KEY = 'photos_upload_secret'
+
+      const $ = (id) => document.getElementById(id)
+      const tokenInput = $('token')
+      const saved = localStorage.getItem(TOKEN_KEY) || ''
+      tokenInput.value = saved
+
+      $('save').addEventListener('click', () => {
+        const v = tokenInput.value.trim()
+        if (!v) return
+        localStorage.setItem(TOKEN_KEY, v)
+        $('save').textContent = '已保存'
+        setTimeout(() => ($('save').textContent = '保存'), 1500)
+      })
+
+      $('reset').addEventListener('click', (e) => {
+        e.preventDefault()
+        if (!confirm('清空已保存的 token？')) return
+        localStorage.removeItem(TOKEN_KEY)
+        tokenInput.value = ''
+      })
+
+      $('files').addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files || [])
+        if (!files.length) return
+
+        const token = (localStorage.getItem(TOKEN_KEY) || tokenInput.value || '').trim()
+        if (!token) {
+          alert('请先填入并保存 UPLOAD_SECRET')
+          return
+        }
+
+        $('log').innerHTML = ''
+        $('summary').hidden = true
+
+        let ok = 0
+        let fail = 0
+        let triggered = false
+
+        for (const f of files) {
+          const li = document.createElement('li')
+          li.innerHTML = `<span class="name">${escapeHtml(f.name)} (${(f.size / 1024).toFixed(0)} KB)</span><span class="status pending">上传中…</span>`
+          $('log').appendChild(li)
+
+          try {
+            const r = await fetch(ENDPOINT, {
+              method: 'POST',
+              headers: {
+                authorization: 'Bearer ' + token,
+                'x-filename': 'auto', // server auto-names
+                'content-type': f.type || 'image/jpeg',
+              },
+              body: f,
+            })
+            const j = await r.json().catch(() => ({}))
+            if (r.ok && j.ok) {
+              ok++
+              if (j.triggered) triggered = true
+              li.querySelector('.status').className = 'status ok'
+              li.querySelector('.status').textContent = '✓ ' + (j.key || 'OK')
+            } else {
+              fail++
+              li.querySelector('.status').className = 'status fail'
+              li.querySelector('.status').textContent = '✗ ' + (j.error || r.status)
+            }
+          } catch (err) {
+            fail++
+            li.querySelector('.status').className = 'status fail'
+            li.querySelector('.status').textContent = '✗ ' + (err.message || err)
+          }
+        }
+
+        const s = $('summary')
+        s.hidden = false
+        s.innerHTML =
+          `成功 ${ok} 张${fail ? `，失败 ${fail} 张` : ''}。` +
+          (triggered
+            ? '<br>站点重建已自动触发，3–5 分钟后新图上线。'
+            : '<br><span class="small">未自动触发重建（DEPLOY_HOOK_URL 可能未配）。需手动 push 空 commit。</span>')
+
+        // Reset file input so picking the same file again still triggers change
+        $('files').value = ''
+      })
+
+      function escapeHtml(s) {
+        return String(s).replace(
+          /[&<>"']/g,
+          (c) =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
+        )
+      }
+    </script>
+  </body>
+</html>

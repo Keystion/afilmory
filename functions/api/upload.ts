@@ -37,8 +37,17 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     return json({ error: 'unauthorized' }, 401)
   }
 
-  const filename = (ctx.request.headers.get('x-filename') || '').trim()
-  if (!filename || !FILENAME_RE.test(filename)) {
+  let filename = (ctx.request.headers.get('x-filename') || '').trim()
+  if (!filename || filename === 'auto') {
+    // Auto-name when client omits — server timestamp UTC, used as a unique key.
+    // Site sort order still uses EXIF DateTimeOriginal from the image itself.
+    const now = new Date()
+    const Y = now.getUTCFullYear()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const stamp = `${Y}-${pad(now.getUTCMonth() + 1)}-${pad(now.getUTCDate())}_${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}`
+    const rand = Math.random().toString(36).slice(2, 8)
+    filename = `auto/${Y}/${stamp}_${rand}.jpg`
+  } else if (!FILENAME_RE.test(filename)) {
     return json({ error: 'invalid x-filename (allowed: [A-Za-z0-9_\\-./]+\\.(jpe?g|png|webp))' }, 400)
   }
   if (filename.startsWith('_hidden/') || filename.includes('..') || filename.startsWith('/')) {
