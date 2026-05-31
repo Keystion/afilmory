@@ -41,6 +41,27 @@ function shuffleInPlace<T>(arr: T[]): T[] {
   return arr
 }
 
+function successResponse(data: unknown, meta: Record<string, unknown>, status = 200): Response {
+  return new Response(JSON.stringify({ success: true, data, meta }), {
+    status,
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store',
+      ...CORS_HEADERS,
+    },
+  })
+}
+
+function errorResponse(code: string, message: string, status: number): Response {
+  return new Response(JSON.stringify({ success: false, error: { code, message } }), {
+    status,
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      ...CORS_HEADERS,
+    },
+  })
+}
+
 async function listAllKeys(bucket: R2Bucket): Promise<string[]> {
   const keys: string[] = []
   let cursor: string | undefined
@@ -58,7 +79,11 @@ export const onRequestOptions: PagesFunction = () => new Response(null, { status
 
 export const onRequestGet: PagesFunction<Env> = async (ctx) => {
   const url = new URL(ctx.request.url)
-  const count = Math.min(Math.max(1, Number.parseInt(url.searchParams.get('count') ?? '10', 10) || 10), MAX_COUNT)
+  const rawCount = Number.parseInt(url.searchParams.get('count') ?? '10', 10)
+  if (Number.isNaN(rawCount) || rawCount < 1) {
+    return errorResponse('INVALID_PARAM', '`count` must be a positive integer', 400)
+  }
+  const count = Math.min(rawCount, MAX_COUNT)
 
   // Check CF cache first
   const cache = caches.default
@@ -83,6 +108,7 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
     )
   }
 
+  const total = allKeys.length
   shuffleInPlace(allKeys)
   const picked = allKeys.slice(0, count)
 
@@ -98,11 +124,5 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
     }
   })
 
-  return new Response(JSON.stringify(photos), {
-    headers: {
-      'content-type': 'application/json; charset=utf-8',
-      'cache-control': 'no-store',
-      ...CORS_HEADERS,
-    },
-  })
+  return successResponse(photos, { count: photos.length, total })
 }
