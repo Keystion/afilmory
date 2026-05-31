@@ -17,7 +17,7 @@ interface Env {
 
 const SITE_ORIGIN = 'https://photos.webclown.net'
 const CACHE_TTL_S = 300 // 5 min
-const MAX_COUNT = 50
+const MAX_COUNT = 10
 
 const CORS_HEADERS = {
   'access-control-allow-origin': '*',
