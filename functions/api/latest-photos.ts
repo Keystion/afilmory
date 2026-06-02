@@ -37,6 +37,11 @@ function basename(key: string): string {
   return key.split('/').pop() ?? key
 }
 
+// Afilmory normalizes .jpeg → .jpg when generating thumbnails
+function toThumbnailName(name: string): string {
+  return name.replace(/\.jpeg$/i, '.jpg')
+}
+
 function successResponse(data: unknown, meta: Record<string, unknown>): Response {
   return new Response(JSON.stringify({ success: true, data, meta }), {
     headers: {
@@ -113,7 +118,7 @@ export const onRequestGet: PagesFunction<Env> = async (ctx) => {
     const name = basename(key)
     const slug = name.replace(/\.[^.]+$/, '')
     return {
-      thumbnailUrl: `${SITE_ORIGIN}/thumbnails/${name}`,
+      thumbnailUrl: `${SITE_ORIGIN}/thumbnails/${toThumbnailName(name)}`,
       originalUrl: r2Origin ? `${r2Origin}/${key}` : null,
       photoPageUrl: `${SITE_ORIGIN}/photos/${slug}`,
       uploadedAt: uploaded,
